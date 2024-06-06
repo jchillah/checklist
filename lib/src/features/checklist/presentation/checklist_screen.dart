@@ -1,9 +1,11 @@
+import 'package:checklist/src/data/database_repository.dart';
 import 'package:checklist/src/features/checklist/domain/check_item.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 class ChecklistScreen extends StatefulWidget {
-  const ChecklistScreen({super.key});
+  final DatabaseRepository databaseRepository;
+
+  const ChecklistScreen({super.key, required this.databaseRepository});
 
   @override
   State<ChecklistScreen> createState() => _ChecklistScreenState();
@@ -11,36 +13,54 @@ class ChecklistScreen extends StatefulWidget {
 
 class _ChecklistScreenState extends State<ChecklistScreen> {
   // State
-  final List<CheckItem> _checkList = [];
   final TextEditingController _controller = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
+    // reload data on every rebuild
+    Future<List<CheckItem>> checkListFuture =
+        widget.databaseRepository.getCheckList();
+
     return Scaffold(
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             Expanded(
-              child: ListView.builder(
-                itemCount: _checkList.length,
-                itemBuilder: (context, index) {
-                  final currentItem = _checkList[index];
-                  return Card(
-                    child: ListTile(
-                      title: Text(currentItem.title),
-                      subtitle: Text(
-                          DateFormat('dd.MM.yy').format(currentItem.timestamp)),
-                      trailing: IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _checkList.remove(currentItem);
-                          });
-                        },
-                        icon: const Icon(Icons.delete),
-                      ),
-                    ),
-                  );
+              child: FutureBuilder(
+                future: checkListFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.hasData &&
+                      snapshot.connectionState == ConnectionState.done) {
+                    // FALL: Future ist komplett und hat Daten!
+                    final checklist = snapshot.data!;
+                    return ListView.builder(
+                      itemCount: checklist.length,
+                      itemBuilder: (context, index) {
+                        final currentItem = checklist[index];
+                        return Card(
+                          child: ListTile(
+                            title: Text(currentItem.title),
+                            trailing: IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  widget.databaseRepository
+                                      .removeItem(currentItem);
+                                });
+                              },
+                              icon: const Icon(Icons.delete),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  } else if (snapshot.connectionState != ConnectionState.done) {
+                    // FALL: Sind noch im Ladezustand
+                    return const Center(child: CircularProgressIndicator());
+                  } else {
+                    // FALL: Es gab nen Fehler
+                    return const Icon(Icons.error);
+                  }
                 },
               ),
             ),
@@ -58,7 +78,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
 
                 // zur Liste adden und build-Methode neu ausführen
                 setState(() {
-                  _checkList.add(checkItem);
+                  widget.databaseRepository.addItem(checkItem);
                 });
               },
               child: const Text("Hinzufügen"),
