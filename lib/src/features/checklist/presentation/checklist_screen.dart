@@ -1,6 +1,7 @@
 import 'package:checklist/src/data/database_repository.dart';
 import 'package:checklist/src/features/checklist/domain/check_item.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class ChecklistScreen extends StatefulWidget {
   final DatabaseRepository databaseRepository;
@@ -32,8 +33,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                 builder: (context, snapshot) {
                   if (snapshot.hasData &&
                       snapshot.connectionState == ConnectionState.done) {
+                    final checklist = snapshot.data as List<CheckItem>;
                     // FALL: Future ist komplett und hat Daten!
-                    final checklist = snapshot.data!;
                     return ListView.builder(
                       itemCount: checklist.length,
                       itemBuilder: (context, index) {
@@ -41,6 +42,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                         return Card(
                           child: ListTile(
                             title: Text(currentItem.title),
+                            subtitle: Text(DateFormat('dd.MM.yy')
+                                .format(currentItem.timestamp)),
                             trailing: IconButton(
                               onPressed: () {
                                 setState(() {
@@ -73,10 +76,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                   title: _controller.text,
                   timestamp: DateTime.now(),
                 );
-                // Textfeld leeren
                 _controller.clear();
 
-                // zur Liste adden und build-Methode neu ausführen
                 setState(() {
                   widget.databaseRepository.addItem(checkItem);
                 });
